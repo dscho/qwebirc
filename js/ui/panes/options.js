@@ -38,7 +38,21 @@ qwebirc.config.DEFAULT_OPTIONS = [
     return {class_: qwebirc.config.HueOption, default_: 210};
   }, {
     get: function(value, ui) {
-      ui.setModifiableStylesheetValues(value, 0, 0);
+      ui.setModifiableStylesheetValues(value, null, null);
+    }
+  }],
+  [12, "STYLE_SAT", "Adjust user interface saturation", function() {
+    return {class_: qwebirc.config.SaturationOption, default_: 0};
+  }, {
+    get: function(value, ui) {
+      ui.setModifiableStylesheetValues(null, value, null);
+    }
+  }],
+  [13, "STYLE_LIGHTNESS", "Adjust user interface lightness", function() {
+    return {class_: qwebirc.config.LightnessOption, default_: 0};
+  }, {
+    get: function(value, ui) {
+      ui.setModifiableStylesheetValues(null, null, value);
     }
   }]
 ];
@@ -109,12 +123,13 @@ qwebirc.config.TextInput = new Class({
   }
 });
 
-qwebirc.config.HueInput = new Class({
+qwebirc.config.SliderInput = new Class({
   Extends: qwebirc.config.Input,
   render: function() {
     var i = new Element("div");
     i.addClass("qwebirc-optionspane");
-    i.addClass("hue-slider");
+    i.addClass("slider");
+    i.addClass(this.options.class_);
     this.parentElement.appendChild(i);
     
     var k = new Element("div");
@@ -126,7 +141,7 @@ qwebirc.config.HueInput = new Class({
     
     i.appendChild(k);
     
-    var slider = new Slider(i, k, {steps: 36, range: [0, 369], wheel: true});
+    var slider = new Slider(i, k, {steps: this.options.steps, range: [this.options.min, this.options.max], wheel: true});
     slider.set(this.value);
     this.startValue = this.value;
     
@@ -147,6 +162,30 @@ qwebirc.config.HueInput = new Class({
   cancel: function() {
     this.value = this.startValue;
     this.get();
+  }
+});
+
+qwebirc.config.HueInput = new Class({
+  Extends: qwebirc.config.SliderInput,
+  initialize: function(parent, option, position, parentObject) {
+    this.options = {steps: 36, min: 0, max: 369, class_: "hue-slider"};
+    this.parent(parent, option, position, parentObject);
+  }
+});
+
+qwebirc.config.SaturationInput = new Class({
+  Extends: qwebirc.config.SliderInput,
+  initialize: function(parent, option, position, parentObject) {
+    this.options = {steps: 36, min: -100, max: 100, class_: "saturation-slider"};
+    this.parent(parent, option, position, parentObject);
+  }
+});
+
+qwebirc.config.LightnessInput = new Class({
+  Extends: qwebirc.config.SliderInput,
+  initialize: function(parent, option, position, parentObject) {
+    this.options = {steps: 36, min: -100, max: 100, class_: "lightness-slider"};
+    this.parent(parent, option, position, parentObject);
   }
 });
 
@@ -261,6 +300,16 @@ qwebirc.config.CheckOption = new Class({
 qwebirc.config.HueOption = new Class({
   Extends: qwebirc.config.Option,
   Element: qwebirc.config.HueInput
+});
+
+qwebirc.config.SaturationOption = new Class({
+  Extends: qwebirc.config.Option,
+  Element: qwebirc.config.SaturationInput
+});
+
+qwebirc.config.LightnessOption = new Class({
+  Extends: qwebirc.config.Option,
+  Element: qwebirc.config.LightnessInput
 });
 
 qwebirc.ui.Options = new Class({

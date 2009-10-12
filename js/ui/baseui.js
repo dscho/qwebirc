@@ -342,6 +342,14 @@ qwebirc.ui.StandardUI = new Class({
     }
   },
   setModifiableStylesheetValues: function(hue, saturation, lightness) {
+    if(hue == null)
+      hue = this.__lastModifiableStylesheetValues[0];
+    if(saturation == null)
+      saturation = this.__lastModifiableStylesheetValues[1];
+    if(lightness == null)
+      lightness = this.__lastModifiableStylesheetValues[2];
+    this.__lastModifiableStylesheetValues = [hue, saturation, lightness];
+
     if(!$defined(this.__styleSheet))
       return;
     this.__styleSheet.set(function(x) {
