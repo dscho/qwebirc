@@ -29,7 +29,7 @@ REALNAME = "http://moo.com/"
 #        - a string, e.g. IDENT = "webchat"
 #        - the literal value IDENT_HEX, this will set the ident to the
 #          a hexadecimal version of the users IP address, e.g
-#          IDENT = HEX_IDENT
+#          IDENT = IDENT_HEX
 #        - the literal value IDENT_NICKNAME, this will use the users
 #          supplied nickname as their ident.
 IDENT = "webchat"
@@ -117,6 +117,20 @@ FEEDBACK_SMTP_HOST, FEEDBACK_SMTP_PORT = "127.0.0.1", 25
 #         List of IP addresses to allow onto the admin engine at
 #         http://instance/adminengine
 ADMIN_ENGINE_HOSTS = ["127.0.0.1"]
+
+# PROXY OPTIONS
+# ---------------------------------------------------------------------
+#
+# OPTION: FORWARDED_FOR_HEADER
+#         If you're using a proxy that passes through a forwarded-for
+#         header set this option to the header name, also set
+#         FORWARDED_FOR_IPS.
+#FORWARDED_FOR_HEADER="x-forwarded-for"
+ 
+# OPTION: FORWARDED_FOR_IPS
+#         This option specifies the IP addresses that forwarded-for
+#         headers will be accepted from.
+#FORWARDED_FOR_IPS=["127.0.0.1"]
 
 # EXECUTION OPTIONS
 # ---------------------------------------------------------------------

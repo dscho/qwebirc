@@ -84,7 +84,7 @@ qwebirc.ui.QUI = new Class({
     
     var dropdown = new Element("div");
     dropdown.addClass("dropdown-tab");
-    dropdown.appendChild(new Element("img", {src: "images/favicon.png", title: "menu", alt: "menu"}));
+    dropdown.appendChild(new Element("img", {src: "images/icon.png", title: "menu", alt: "menu"}));
     dropdown.setStyle("opacity", 1);
 
     var dropdownEffect = new Fx.Tween(dropdown, {duration: "long", property: "opacity", link: "chain"});
@@ -438,7 +438,7 @@ qwebirc.ui.QUI.Window = new Class({
     if(!this.client.nickOnChanHasPrefix(this.client.nickname, this.name, "@")) {
 /*      var cmodes = this.client.getChannelModes(channel);
       if(cmodes.indexOf("t")) {*/
-        alert("Sorry, you need to be opped to change the topic!");
+        alert("Sorry, you need to be a channel operator to change the topic!");
         return;
       /*}*/
     }
