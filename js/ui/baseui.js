@@ -59,7 +59,7 @@ qwebirc.ui.BaseUI = new Class({
     if(!this.firstClient) {
       this.firstClient = true;
       w.addLine("", "qwebirc v" + qwebirc.VERSION);
-      w.addLine("", "Copyright (C) 2008-2009 Chris Porter and the qwebirc project.");
+      w.addLine("", "Copyright (C) 2008-2011 Chris Porter and the qwebirc project.");
       w.addLine("", "http://www.qwebirc.org");
       w.addLine("", "Licensed under the GNU General Public License, Version 2.");
     }
@@ -190,8 +190,13 @@ qwebirc.ui.StandardUI = new Class({
     this.parent(parentElement, windowClass, uiName, options);
 
     this.tabCompleter = new qwebirc.ui.TabCompleterFactory(this);
-    this.uiOptions = new qwebirc.ui.DefaultOptionsClass(this);
+    this.uiOptions = new qwebirc.ui.DefaultOptionsClass(this, options.uiOptionsArg);
     this.customWindows = {};
+    
+    this.__styleValues = {hue: this.uiOptions.STYLE_HUE, saturation: 0, lightness: 0};
+    if($defined(this.options.hue)) this.__styleValues.hue = this.options.hue;
+    if($defined(this.options.saturation)) this.__styleValues.saturation = this.options.saturation;
+    if($defined(this.options.lightness)) this.__styleValues.lightness = this.options.lightness;
     
     var ev;
     if(Browser.Engine.trident) {
@@ -293,7 +298,9 @@ qwebirc.ui.StandardUI = new Class({
     d.setSubWindow(ew);
   },
   embeddedWindow: function() {
-    this.addCustomWindow("Embedding wizard", qwebirc.ui.EmbedWizard, "embeddedwizard", {baseURL: this.options.baseURL});
+    this.addCustomWindow("Add webchat to your site", qwebirc.ui.EmbedWizard, "embeddedwizard", {baseURL: this.options.baseURL, uiOptions: this.uiOptions, optionsCallback: function() {
+      this.optionsWindow();
+    }.bind(this)});
   },
   optionsWindow: function() {
     this.addCustomWindow("Options", qwebirc.ui.OptionsPane, "optionspane", this.uiOptions);
@@ -320,8 +327,12 @@ qwebirc.ui.StandardUI = new Class({
     /* doesn't really belong here */
     if(name == "whois") {
       return ["span", function(nick) {
-        this.client.exec("/WHOIS " + nick);
-      }.bind(window)];
+        if(this.uiOptions.QUERY_ON_NICK_CLICK) {
+          window.client.exec("/QUERY " + nick);
+        } else {
+          window.client.exec("/WHOIS " + nick);
+        }
+      }.bind(this)];
     }
 
     return null;
@@ -333,20 +344,31 @@ qwebirc.ui.StandardUI = new Class({
     this.tabCompleter.reset();
   },
   setModifiableStylesheet: function(name) {
-    this.__styleSheet = new qwebirc.ui.style.ModifiableStylesheet("/css/" + name + qwebirc.FILE_SUFFIX + ".mcss");
-    
-    if($defined(this.options.hue)) {
-      this.setModifiableStylesheetValues(this.options.hue, 0, 0);
-    } else {
-      this.setModifiableStylesheetValues(this.uiOptions.STYLE_HUE, 0, 0);
-    }
+    this.__styleSheet = new qwebirc.ui.style.ModifiableStylesheet(qwebirc.global.staticBaseURL + "css/" + name + qwebirc.FILE_SUFFIX + ".mcss");
+    this.setModifiableStylesheetValues({});
   },
-  setModifiableStylesheetValues: function(hue, saturation, lightness) {
+  setModifiableStylesheetValues: function(values) {
+    for(var k in values)
+      this.__styleValues[k] = values[k];
+      
     if(!$defined(this.__styleSheet))
       return;
-    this.__styleSheet.set(function(x) {
-      return x.setHue(hue).setSaturation(x.hsb[1] + saturation).setBrightness(x.hsb[2] + lightness);
-    });
+      
+    var hue = this.__styleValues.hue, lightness = this.__styleValues.lightness, saturation = this.__styleValues.saturation;
+    
+    this.__styleSheet.set(function() {
+      var mode = arguments[0];
+      if(mode == "c") {
+        var x = new Color(arguments[1]);
+        var c = x.setHue(hue).setSaturation(x.hsb[1] + saturation).setBrightness(x.hsb[2] + lightness);
+        if(c == "255,255,255") /* IE confuses white with transparent... */
+          c = "255,255,254";
+        
+        return "rgb(" + c + ")";
+      } else if(mode == "o") {
+        return this.uiOptions[arguments[1]] ? arguments[2] : arguments[3];
+      }
+    }.bind(this));
   }
 });
 
@@ -382,7 +404,8 @@ qwebirc.ui.NewLoginUI = new Class({
   loginBox: function(callbackfn, initialNickname, initialChannels, autoConnect, autoNick) {
     this.postInitialize();
 
-    var w = this.newCustomWindow("Connect", true, qwebirc.ui.WINDOW_CONNECT);
+    /* I'd prefer something shorter and snappier! */
+    var w = this.newCustomWindow("Connection details", true, qwebirc.ui.WINDOW_CONNECT);
     var callback = function(args) {
       w.close();
       callbackfn(args);
@@ -411,10 +434,56 @@ qwebirc.ui.QuakeNetUI = new Class({
       };
       
       /* HACK */
-      var foo = function() { document.location = "/auth?logout=1"; };
+      var foo = function() { document.location = qwebirc.global.dynamicBaseURL + "auth?logout=1"; };
       foo.delay(500);
     }
   }
 });
 
 qwebirc.ui.RootUI = qwebirc.ui.QuakeNetUI;
+
+qwebirc.ui.RequestTransformHTML = function(options) {
+  var HREF_ELEMENTS = {
+    "IMG": 1
+  };
+
+  var update = options.update;
+  var onSuccess = options.onSuccess;
+
+  var fixUp = function(node) {
+    if(node.nodeType != 1)
+      return;
+
+    var tagName = node.nodeName.toUpperCase();
+    if(HREF_ELEMENTS[tagName]) {
+      var attr = node.getAttribute("transform_attr");
+      var value = node.getAttribute("transform_value");
+      if($defined(attr) && $defined(value)) {
+        node.removeAttribute("transform_attr");
+        node.removeAttribute("transform_value");
+        node.setAttribute(attr, qwebirc.global.staticBaseURL + value);
+      }
+    }
+
+    for(var i=0;i<node.childNodes.length;i++)
+      fixUp(node.childNodes[i]);
+  };
+
+  delete options["update"];
+  options.onSuccess = function(tree, elements, html, js) {
+    var container = new Element("div");
+    container.set("html", html);
+    fixUp(container);
+    update.empty();
+
+    while(container.childNodes.length > 0) {
+      var x = container.firstChild;
+      container.removeChild(x);
+      update.appendChild(x);
+    }
+    onSuccess();
+  };
+
+  return new Request.HTML(options);
+};
+

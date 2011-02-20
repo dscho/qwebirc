@@ -31,7 +31,8 @@ def _gethgid():
   except Exception, e:
     if hasattr(e, "errno") and e.errno == 2:
       raise HGException, "unable to execute"
-      
+    raise HGException, "unknown exception running hg: %s" % repr(e)
+    
   data = p.communicate()[0]
   if p.wait() != 0:
     raise HGException, "unable to get id"
@@ -52,8 +53,8 @@ def producehtml(name, debug):
   ui = pages.UIs[name]
   js = jslist(name, debug)
   css = csslist(name, debug, gen=True)
-  csshtml = "\n".join("  <link rel=\"stylesheet\" href=\"%s\" type=\"text/css\"/>" % x for x in css)
-  jshtml = "\n".join("  <script type=\"text/javascript\" src=\"%s\"></script>" % x for x in js)
+  csshtml = "\n".join("  <link rel=\"stylesheet\" href=\"%s%s\" type=\"text/css\"/>" % (config.STATIC_BASE_URL, x) for x in css)
+  jshtml = "\n".join("  <script type=\"text/javascript\" src=\"%s%s\"></script>" % (config.STATIC_BASE_URL, x) for x in js)
 
   div = ui.get("div", "")
   customjs = ui.get("customjs", "")
@@ -61,9 +62,11 @@ def producehtml(name, debug):
   return """%s
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
+  <base />
   <title>%s (qwebirc)</title>
   <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
-  <link rel="icon" type="image/png" href="images/favicon.png"/>
+  <meta http-equiv="X-UA-Compatible" content="IE=8" />
+  <link rel="shortcut icon" type="image/png" href="%simages/favicon.png"/>
 %s%s
 %s
   <script type="text/javascript">
@@ -78,7 +81,7 @@ def producehtml(name, debug):
   </div>
 </body>
 </html>
-""" % (ui["doctype"], config.APP_TITLE, csshtml, customjs, jshtml, ui["class"], optionsgen.get_options(), div)
+""" % (ui["doctype"], config.APP_TITLE, config.STATIC_BASE_URL, csshtml, customjs, jshtml, ui["class"], optionsgen.get_options(), div)
 
 def main(outputdir=".", produce_debug=True):
   p = os.path.join(outputdir, "static")

@@ -15,7 +15,9 @@ def check_dependencies():
   i = 0
   
   check_twisted()
+  check_zope()
   check_win32()
+  i+=check_json()
   i+=check_java()
   i+=check_hg()
   
@@ -70,14 +72,27 @@ def check_hg():
     
   return 0
   
+def check_zope():
+  try:
+    from zope.interface import Interface
+  except ImportError:
+    if sys.platform.startswith("win"):
+      fail("qwebirc requires zope interface",
+           "see pypi: http://pypi.python.org/pypi/zope.interface")
+    else:
+      fail("qwebirc requires zope interface.",
+           "this should normally come with twisted, but can be downloaded",
+           "from pypi: http://pypi.python.org/pypi/zope.interface")
+           
 def check_twisted():
   try:
     import twisted
   except ImportError:
     fail("qwebirc requires twisted (at least 8.2.0), see http://twistedmatrix.com/")
 
-  twisted_fail = lambda x, y=None: fail("you don't seem to have twisted's %s module." % x,
-                                        "your distro is most likely modular, look for a twisted web package%s." % (" %s" % y if y else "",))
+  def twisted_fail(x, y=None):
+    fail("you don't seem to have twisted's %s module." % x,
+         "your distro is most likely modular, look for a twisted %s package%s." % (x, " %s" % y if y else "",))
 
   try:
     import twisted.names
@@ -88,7 +103,6 @@ def check_twisted():
     import twisted.mail
   except ImportError:
     twisted_fail("mail")
-    fail("you don't seem to have twisted's mail module, your distro is most likely modular, look for a twisted mail package.")
 
   try:
     import twisted.web
@@ -98,8 +112,17 @@ def check_twisted():
   try:
     import twisted.words
   except ImportError:
-    twistedfail("words")
-
+    twisted_fail("words")
+    
+def check_json():
+  import qwebirc.util.qjson
+  if qwebirc.util.qjson.slow:
+    warn("simplejson module with C speedups not installed.",
+         "using embedded module (slower); consider installing simplejson from:",
+         "http://pypi.python.org/pypi/simplejson/")
+    return 1
+  return 0
+  
 if __name__ == "__main__":
   import dependencies
   dependencies.check_dependencies()

@@ -29,17 +29,25 @@ REALNAME = "http://moo.com/"
 #        - a string, e.g. IDENT = "webchat"
 #        - the literal value IDENT_HEX, this will set the ident to the
 #          a hexadecimal version of the users IP address, e.g
-#          IDENT = HEX_IDENT
+#          IDENT = IDENT_HEX
 #        - the literal value IDENT_NICKNAME, this will use the users
 #          supplied nickname as their ident.
 IDENT = "webchat"
+
+# OPTION: OUTGOING_IP
+#         The IP address to bind to when connecting to the IRC server.
+#
+#         This will not change the IP address that qwebirc listens on. 
+#         You will need to call run.py with the --ip/-i option if you 
+#         want that.
+#OUTGOING_IP = "127.0.0.1"
 
 # OPTION: WEBIRC_MODE
 #         This option controls how the IP/hostname of the connecting
 #         browser will be sent to IRC.
 #
 #         Possible values include:
-#         - webirc
+#         - the string "webirc", i.e. WEBIRC_MODE = "webirc"
 #           Use WEBIRC type blocks, with a server configuration of
 #           the following style:
 #
@@ -51,12 +59,12 @@ IDENT = "webchat"
 #
 #           Remember to set the WEBIRC_PASSWORD value to be the
 #           same as <password>.
-#         - cgiirc
+#         - the string "cgiirc", i.e. WEBIRC_MODE = "cgiirc"
 #           old style CGIIRC command, set CGIIRC_STRING to be the
 #           command used to set the ip/hostname, and set
 #           WEBIRC_PASSWORD to be the password used in the server's
 #           configuration file.
-#         - None (the literal value)
+#         - the literal value None, i.e. WEBIRC_MODE = None
 #           Send the IP and hostname in the realname field, overrides
 #          the REALNAME option.
 WEBIRC_MODE = None
@@ -88,6 +96,36 @@ NETWORK_NAME = "FooNet"
 #         The title of the application in the web browser.
 APP_TITLE = NETWORK_NAME + " Web IRC"
 
+# NICKNAME VALIDATION OPTIONS
+# ---------------------------------------------------------------------
+#
+# OPTION: NICKNAME_VALIDATE
+#         If True then user nicknames will be validated according to
+#         the configuration below, otherwise they will be passed
+#         directly to the ircd.
+NICKNAME_VALIDATE = True
+
+# OPTION: NICKNAME_VALID_FIRST_CHAR
+#         A string containing valid characters for the first letter of
+#         a nickname.
+#         Default is as in RFC1459.
+import string
+NICKNAME_VALID_FIRST_CHAR = string.letters + "_[]{}`^\\|"
+
+# OPTION: NICKNAME_VALID_SUBSEQUENT_CHAR
+#         A string containing valid characters for the rest of the
+#         nickname.
+NICKNAME_VALID_SUBSEQUENT_CHARS = NICKNAME_VALID_FIRST_CHAR + string.digits + "-"
+
+# OPTION: NICKNAME_MINIMUM_LENGTH
+#         Minimum characters permitted in a nickname on your network.
+NICKNAME_MINIMUM_LENGTH = 2
+
+# OPTION: NICKNAME_MAXIMUM_LENGTH
+#         Maximum characters permitted in a nickname on your network.
+#         Ideally we'd extract this from the ircd, but we need to know
+#         before we connect.
+NICKNAME_MAXIMUM_LENGTH = 15
 
 # FEEDBACK OPTIONS
 # ---------------------------------------------------------------------
@@ -118,6 +156,20 @@ FEEDBACK_SMTP_HOST, FEEDBACK_SMTP_PORT = "127.0.0.1", 25
 #         http://instance/adminengine
 ADMIN_ENGINE_HOSTS = ["127.0.0.1"]
 
+# PROXY OPTIONS
+# ---------------------------------------------------------------------
+#
+# OPTION: FORWARDED_FOR_HEADER
+#         If you're using a proxy that passes through a forwarded-for
+#         header set this option to the header name, also set
+#         FORWARDED_FOR_IPS.
+#FORWARDED_FOR_HEADER="x-forwarded-for"
+ 
+# OPTION: FORWARDED_FOR_IPS
+#         This option specifies the IP addresses that forwarded-for
+#         headers will be accepted from.
+#FORWARDED_FOR_IPS=["127.0.0.1"]
+
 # EXECUTION OPTIONS
 # ---------------------------------------------------------------------
 #
@@ -125,6 +177,12 @@ ADMIN_ENGINE_HOSTS = ["127.0.0.1"]
 #         These arguments will be used as if qwebirc was run directly
 #         with them, see run.py --help for a list of options.
 #ARGS = "-n -p 3989"
+
+# OPTION: SYSLOG_ADDR (optional)
+#         Used in conjunction with util/syslog.py and -s option.
+#         This option specifies the address and port that syslog
+#         datagrams will be sent to.
+#SYSLOG_ADDR = "127.0.0.1", 514
 
 # TUNEABLE VALUES
 # ---------------------------------------------------------------------
@@ -176,6 +234,28 @@ HTTP_AJAX_REQUEST_TIMEOUT = 30
 #         be closed after this many seconds, including connections
 #         that haven't started/completed an HTTP request.
 HTTP_REQUEST_TIMEOUT = 5
+
+# OPTION: STATIC_BASE_URL
+#         This value is used to build the URL for all static HTTP
+#         requests.
+#         You'd find this useful if you're running multiple qwebirc
+#         instances on the same host.
+STATIC_BASE_URL = ""
+
+# OPTION: DYNAMIC_BASE_URL
+#         This value is used to build the URL for all dynamic HTTP
+#         requests.
+#         You'd find this useful if you're running multiple qwebirc
+#         instances on the same host.
+DYNAMIC_BASE_URL = ""
+
+# OPTION: CONNECTION_RESOLVER
+#         A list of (ip, port) tuples of resolvers to use for looking
+#         the SRV record(s) used for connecting to the name set in
+#         IRC_SERVER.
+#         The default value is None, and in this case qwebirc will use
+#         the system's default resolver(s).
+CONNECTION_RESOLVER = None
 
 # QUAKENET SPECIFIC VALUES
 # ---------------------------------------------------------------------

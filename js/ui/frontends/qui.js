@@ -84,7 +84,7 @@ qwebirc.ui.QUI = new Class({
     
     var dropdown = new Element("div");
     dropdown.addClass("dropdown-tab");
-    dropdown.appendChild(new Element("img", {src: "images/favicon.png", title: "menu", alt: "menu"}));
+    dropdown.appendChild(new Element("img", {src: qwebirc.global.staticBaseURL + "images/icon.png", title: "menu", alt: "menu"}));
     dropdown.setStyle("opacity", 1);
 
     var dropdownEffect = new Fx.Tween(dropdown, {duration: "long", property: "opacity", link: "chain"});
@@ -148,7 +148,7 @@ qwebirc.ui.QUI = new Class({
     var inputbox = new Element("input");
     form.appendChild(inputbox);
     this.inputbox = inputbox;
-    this.inputbox.maxLength = 512;
+    this.inputbox.maxLength = 470;
 
     var sendInput = function() {
       if(inputbox.value == "")
@@ -331,12 +331,12 @@ qwebirc.ui.QUI.JSUI = new Class({
     bottom.setStyle("top", (docsize.y - bottomsize.y));
     this.fireEvent("reflow");
   },
-  showChannel: function(state) {
+  showChannel: function(state, nicklistVisible) {
     var display = "none";
     if(state)
       display = "block";
 
-    this.right.setStyle("display", display);
+    this.right.setStyle("display", nicklistVisible ? display : "none");
     this.topic.setStyle("display", display);
   },
   showInput: function(state) {
@@ -354,8 +354,10 @@ qwebirc.ui.QUI.Window = new Class({
     this.tab = new Element("a", {"href": "#"});
     this.tab.addClass("tab");
     this.tab.addEvent("focus", function() { this.blur() }.bind(this.tab));;
-    
+
+    this.spaceNode = document.createTextNode(" ");
     parentObject.tabs.appendChild(this.tab);
+    parentObject.tabs.appendChild(this.spaceNode);
     
     this.tab.appendText(name);
     this.tab.addEvent("click", function(e) {
@@ -426,19 +428,17 @@ qwebirc.ui.QUI.Window = new Class({
       this.parentObject.qjsui.applyClasses("nicklist", this.nicklist);
     }
     
-    if(type == qwebirc.ui.WINDOW_CHANNEL) {
+    if(type == qwebirc.ui.WINDOW_CHANNEL)
       this.updateTopic("");
-    } else {
-      this.reflow();
-    }
-    
+
     this.nicksColoured = this.parentObject.uiOptions.NICK_COLOURS;
+    this.reflow();    
   },
   editTopic: function() {
     if(!this.client.nickOnChanHasPrefix(this.client.nickname, this.name, "@")) {
 /*      var cmodes = this.client.getChannelModes(channel);
       if(cmodes.indexOf("t")) {*/
-        alert("Sorry, you need to be opped to change the topic!");
+        alert("Sorry, you need to be a channel operator to change the topic!");
         return;
       /*}*/
     }
@@ -581,7 +581,7 @@ qwebirc.ui.QUI.Window = new Class({
     this.parentObject.setLines(this.lines);
     this.parentObject.setChannelItems(this.nicklist, this.topic);
     this.parentObject.qjsui.showInput(inputVisible);
-    this.parentObject.qjsui.showChannel($defined(this.nicklist));
+    this.parentObject.qjsui.showChannel($defined(this.nicklist), this.parentObject.uiOptions.SHOW_NICKLIST);
 
     this.reflow();
     
@@ -619,6 +619,8 @@ qwebirc.ui.QUI.Window = new Class({
     this.parent();
     
     this.parentObject.tabs.removeChild(this.tab);
+    this.parentObject.tabs.removeChild(this.spaceNode);
+    this.reflow();
   },
   addLine: function(type, line, colourClass) {
     var e = new Element("div");

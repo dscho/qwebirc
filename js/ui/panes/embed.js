@@ -32,11 +32,15 @@ qwebirc.ui.EmbedWizardStep = new Class({
 qwebirc.ui.EmbedWizard = new Class({
   Implements: [Options, Events],
   options: {
-    parent: null,
+    uiOptions: null,
+    optionsCallback: null,
     baseURL: "http://webchat.quakenet.org/"
   },
   initialize: function(parent, options) {
-    this.setOptions(options);
+    /* for some unknown reason setOptions doesn't work... */
+    this.options.uiOptions = options.uiOptions;
+    this.options.baseURL = options.baseURL;
+    this.options.optionsCallback = options.optionsCallback;
     this.create(parent);
     this.addSteps();
   },
@@ -89,8 +93,12 @@ qwebirc.ui.EmbedWizard = new Class({
     var p = new Element("div");
     parent.appendChild(p);
 
-    var r = qwebirc.util.createInput("radio", p, name, selected);
-    p.appendChild(document.createTextNode(text));
+    var id = qwebirc.util.generateID();
+    var r = qwebirc.util.createInput("radio", p, name, selected, id);
+    
+    var label = new Element("label", {"for": id});
+    label.appendChild(document.createTextNode(text));
+    p.appendChild(label);
       
     return r;
   },
@@ -110,7 +118,7 @@ qwebirc.ui.EmbedWizard = new Class({
     };
   
     this.welcome = this.newStep({
-      "title": "Welcome!",
+      "title": "Add webchat to your website",
       "first": "This wizard will help you create an embedded client by asking you questions then giving you the code to add to your website.<br/><br/>You can use the <b>Next</b> and <b>Back</b> buttons to navigate through the wizard; click <b>Next</b> to continue."
     });
     
@@ -126,7 +134,7 @@ qwebirc.ui.EmbedWizard = new Class({
     
     var customnickDiv = new Element("div");
     this.customnick = this.newStep({
-      "title": "Nickname mode",
+      "title": "Choose a nickname mode",
       "first": "At startup would you like the client to use a random nickname, a preset nickname or a nickname of the users choice?",
       "hint": "It is recommended that you only use a preset nickname if the client is for your own personal use.",
       middle: customnickDiv
@@ -143,6 +151,24 @@ qwebirc.ui.EmbedWizard = new Class({
       middle: promptdiv,
       "hint": "You need to display the dialog if you want the user to be able to set their nickname before connecting."
     });
+
+    var changeOptions = new Element("div");
+    this.currentLF = this.newRadio(changeOptions, "Use the current look and feel (", "lookandfeel", true);
+
+    var alterButton = new Element("input");
+    alterButton.type = "submit";
+    alterButton.value = "alter";
+    alterButton.addEvent("click", this.options.optionsCallback);
+    changeOptions.firstChild.appendChild(alterButton);
+    changeOptions.firstChild.appendChild(document.createTextNode(")."));
+    
+    this.defaultLF = this.newRadio(changeOptions, "Use the default look and feel.", "lookandfeel");
+    
+    this.lookandfeel = this.newStep({
+      "title": "Configure look and feel",
+      "first": "The look and feel will be copied from the current settings.",
+      middle: changeOptions
+    });
     
     var autoconnect = this.newRadio(promptdiv, "Connect without displaying the dialog.", "prompt", true);
     this.connectdialogr = this.newRadio(promptdiv, "Show the connect dialog.", "prompt");
@@ -151,16 +177,24 @@ qwebirc.ui.EmbedWizard = new Class({
     this.nicknameBox.addClass("text");
     this.nickname = this.newStep({
       "title": "Set nickname",
-      "first": "Enter the nickname you would like the client to use by default (use a . for a random number):",
+      "first": "Enter the nickname you would like the client to use by default:",
       "premove": function() {
         if(this.nicknameBox.value == "") {
           alert("You must supply a nickname.");
           this.nicknameBox.focus();
           return false;
         }
+        var v = qwebirc.global.nicknameValidator.validate(this.nicknameBox.value, true);
+        if(v != this.nicknameBox.value) {
+          this.nicknameBox.value = v;
+          alert("The supplied nickname was invalid and has been corrected.");
+          this.nicknameBox.focus();
+          return false;
+         }
         return true;
       }.bind(this),
-      middle: this.nicknameBox
+      middle: this.nicknameBox,
+      hint: "If you use a . (dot/period) then it will be substituted with a random number."
     }).addEvent("show", af.bind(this.nicknameBox));
 
     var codeDiv = new Element("div");
@@ -175,7 +209,7 @@ qwebirc.ui.EmbedWizard = new Class({
       var url = this.generateURL(false);
       
       alink.href = url;
-      alink.target = "new";
+      alink.target = "_blank";
       alink.appendChild(document.createTextNode(url));
       abox.value = "<iframe src=\"" + url + "\" width=\"647\" height=\"400\"></iframe>";
       
@@ -216,6 +250,7 @@ qwebirc.ui.EmbedWizard = new Class({
     if(this.chanBox.value != "" && !this.choosenick.checked)
       this.steps.push(this.connectdialog);
     
+    this.steps.push(this.lookandfeel);
     this.steps.push(this.finish);
   },
   showStep: function() {
@@ -278,6 +313,12 @@ qwebirc.ui.EmbedWizard = new Class({
     if(connectdialog)
       URL.push("prompt=1");
 
+    if(this.currentLF.checked) {
+      var uioptions = this.options.uiOptions.serialise();
+      if(uioptions != "")
+        URL.push("uio=" + uioptions);
+    }
+    
     return this.options.baseURL + (URL.length>0?"?":"") + URL.join("&");
   }
 });

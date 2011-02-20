@@ -9,6 +9,10 @@ qwebirc.ui.supportsFocus = function() {
   return [true];
 }
 
+/**
+ * Note that options are settable by the uioptions url arg by default unless you specifiy
+ * settableByURL...
+ */
 qwebirc.config.DEFAULT_OPTIONS = [
   [1, "BEEP_ON_MENTION", "Beep when nick mentioned or on query activity (requires Flash)", true, {
     enabled: function() {
@@ -16,7 +20,7 @@ qwebirc.config.DEFAULT_OPTIONS = [
         return [false, false]; /* [disabled, default_value] */
       return [true];
     },
-    get: function(value, ui) {
+    applyChanges: function(value, ui) {
       if(ui.setBeepOnMention)
         ui.setBeepOnMention(value);
     }
@@ -26,9 +30,13 @@ qwebirc.config.DEFAULT_OPTIONS = [
   }],
   [2, "DEDICATED_MSG_WINDOW", "Send privmsgs to dedicated messages window", false],
   [4, "DEDICATED_NOTICE_WINDOW", "Send notices to dedicated message window", false],
-  [3, "NICK_OV_STATUS", "Show status (@/+) before nicknames in nicklist", true],
-  [5, "ACCEPT_SERVICE_INVITES", "Automatically join channels when invited by Q", true],
-  [6, "USE_HIDDENHOST", "Hide your hostmask when authed to Q (+x)", true],
+  [3, "NICK_OV_STATUS", "Show status (@/+) before nicknames in channel lines", true],
+  [5, "ACCEPT_SERVICE_INVITES", "Automatically join channels when invited by Q", true, {
+    settableByURL: false
+  }],
+  [6, "USE_HIDDENHOST", "Hide your hostmask when authed to Q (+x)", true, {
+    settableByURL: false
+  }],
   [8, "LASTPOS_LINE", "Show a last position indicator for each window", true, {
     enabled: qwebirc.ui.supportsFocus
   }],
@@ -37,10 +45,13 @@ qwebirc.config.DEFAULT_OPTIONS = [
   [11, "STYLE_HUE", "Adjust user interface hue", function() {
     return {class_: qwebirc.config.HueOption, default_: 210};
   }, {
-    get: function(value, ui) {
-      ui.setModifiableStylesheetValues(value, 0, 0);
+    applyChanges: function(value, ui) {
+      ui.setModifiableStylesheetValues({hue: value});
     }
-  }]
+  }],
+  [12, "QUERY_ON_NICK_CLICK", "Query on nickname click in channel", false],
+  [13, "SHOW_NICKLIST", "Show nickname list in channels", true],
+  [14, "SHOW_TIMESTAMPS", "Show timestamps", true] /* we rely on the hue update */
 ];
 
 qwebirc.config.DefaultOptions = null;
@@ -56,11 +67,11 @@ qwebirc.config.Input = new Class({
     
     this.render();
   },
-  createInput: function(type, parent, name, selected) {
+  createInput: function(type, parent, name, selected, id) {
     if(!$defined(parent))
       parent = this.parentElement;
 
-    return qwebirc.util.createInput(type, parent, name, selected);
+    return qwebirc.util.createInput(type, parent, name, selected, this.option.id);
   },
   FE: function(element, parent) {
     var n = new Element(element);
@@ -76,9 +87,8 @@ qwebirc.config.Input = new Class({
   render: function() {
     this.event("render", this.mainElement);
   },
-  get: function(value) {
-    this.event("get", [value, this.parentObject.optionObject.ui]);
-    return value;
+  applyChanges: function() {
+    this.event("applyChanges", [this.get(), this.parentObject.optionObject.ui]);
   },
   event: function(name, x) {
     if(!$defined(this.option.extras))
@@ -105,7 +115,7 @@ qwebirc.config.TextInput = new Class({
     this.parent();
   },
   get: function() {
-    return this.parent(this.mainElement.value);
+    return this.mainElement.value;
   }
 });
 
@@ -132,7 +142,7 @@ qwebirc.config.HueInput = new Class({
     
     slider.addEvent("change", function(step) {
       this.value = step;
-      this.get();
+      this.applyChanges();
     }.bind(this));
     this.mainElement = i;
     
@@ -142,18 +152,18 @@ qwebirc.config.HueInput = new Class({
     this.parent();
   },
   get: function() {
-    return this.parent(this.value);
+    return this.value;
   },
   cancel: function() {
     this.value = this.startValue;
-    this.get();
+    this.applyChanges();
   }
 });
 
 qwebirc.config.CheckInput = new Class({
   Extends: qwebirc.config.Input,
   render: function() {
-    var i = this.createInput("checkbox");
+    var i = this.createInput("checkbox", null, null, null, this.id);
     this.mainElement = i;
     
     i.checked = this.value;
@@ -162,7 +172,7 @@ qwebirc.config.CheckInput = new Class({
     this.parent();
   },
   get: function() {
-    return this.parent(this.mainElement.checked);
+    return this.mainElement.checked;
   }
 });
 
@@ -191,7 +201,7 @@ qwebirc.config.RadioInput = new Class({
       var x = this.elements[i];
       if(x.checked) {
         this.option.position = i;
-        return this.parent(this.option.options[i][1]);
+        return this.option.options[i][1];
       }
     }
   }
@@ -213,7 +223,13 @@ qwebirc.config.Option = new Class({
         this.default_ = enabledResult[1];
     } else {
       this.enabled = true;
-    }    
+    }
+    
+    if($defined(extras) && $defined(extras.settableByURL)) {
+      this.settableByURL = extras.settableByURL;
+    } else {
+      this.settableByURL = true;
+    }
   },
   setSavedValue: function(x) {
     if(this.enabled)
@@ -348,7 +364,11 @@ qwebirc.ui.OptionsPane = new Class({
       
       var row = FE("tr", tb);
       var cella = FE("td", row);
-      cella.set("text", x.label + ":");
+      
+      x.id = qwebirc.util.generateID();
+      var label = new Element("label", {"for": x.id});
+      cella.appendChild(label);
+      label.set("text", x.label + ":");
 
       var cellb = FE("td", row);
       this.boxList.push([x, new x.Element(cellb, x, i, this)]);
@@ -378,6 +398,9 @@ qwebirc.ui.OptionsPane = new Class({
       var option = x[0];
       var box = x[1];
       this.optionObject.setValue(option, box.get());
+    }.bind(this));
+    this.boxList.forEach(function(x) {
+      x[1].applyChanges();
     }.bind(this));
     this.optionObject.flush();
   },
@@ -411,6 +434,45 @@ qwebirc.ui.CookieOptions = new Class({
   }
 });
 
+qwebirc.ui.SuppliedArgOptions = new Class({
+  Extends: qwebirc.ui.CookieOptions,
+  initialize: function(ui, arg) {
+    var p = {};
+    
+    if($defined(arg) && arg != "" && arg.length > 2) {
+      var checksum = arg.substr(arg.length - 2, 2);
+      var decoded = qwebirc.util.b64Decode(arg.substr(0, arg.length - 2));
+      
+      if(decoded && (new qwebirc.util.crypto.MD5().digest(decoded).slice(0, 2) == checksum))
+        p = qwebirc.util.parseURI("?" + decoded);
+    }
+    
+    this.parsedOptions = p;
+    this.parent(ui);
+  },
+  _get: function(x) {
+    if(x.settableByURL !== true)
+      return this.parent(x);
+
+    var opt = this.parsedOptions[x.optionId];
+    if(!$defined(opt))
+      return this.parent(x);
+      
+    return opt;
+  },
+  serialise: function() {
+    var result = [];
+    this.getOptionList().forEach(function(x) {
+      if(x.settableByURL && x.default_ != x.value)
+        result.push(x.optionId + "=" + x.value);
+    }.bind(this));
+    
+    var raw = result.join("&");
+    var checksum = new qwebirc.util.crypto.MD5().digest(raw).slice(0, 2);
+    return (qwebirc.util.b64Encode(raw)).replaceAll("=", "") + checksum;
+  }
+});
+
 qwebirc.ui.DefaultOptionsClass = new Class({
-  Extends: qwebirc.ui.CookieOptions
+  Extends: qwebirc.ui.SuppliedArgOptions
 });

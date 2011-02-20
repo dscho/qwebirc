@@ -1,11 +1,16 @@
 import twisted, sys, codecs, traceback
 from twisted.words.protocols import irc
-from twisted.internet import reactor, protocol
+from twisted.internet import reactor, protocol, abstract
 from twisted.web import resource, server
 from twisted.protocols import basic
-
-import hmac, time, config, qwebirc.config_options as config_options
+from twisted.names.client import Resolver
+import hmac, time, config, random, qwebirc.config_options as config_options
 from config import HMACTEMPORAL
+
+if config.get("CONNECTION_RESOLVER"):
+  CONNECTION_RESOLVER = Resolver(servers=config.get("CONNECTION_RESOLVER"))
+else:
+  CONNECTION_RESOLVER = None
 
 if hasattr(config, "WEBIRC_MODE") and config.WEBIRC_MODE == "hmac":
   HMACKEY = hmac.HMAC(key=config.HMACKEY)
@@ -141,7 +146,23 @@ class QWebIRCFactory(protocol.ClientFactory):
 
 def createIRC(*args, **kwargs):
   f = QWebIRCFactory(*args, **kwargs)
-  reactor.connectTCP(config.IRCSERVER, config.IRCPORT, f)
+  
+  tcpkwargs = {}
+  if hasattr(config, "OUTGOING_IP"):
+    tcpkwargs["bindAddress"] = (config.OUTGOING_IP, 0)
+  
+  if CONNECTION_RESOLVER is None:
+    reactor.connectTCP(config.IRCSERVER, config.IRCPORT, f, **tcpkwargs)
+    return f
+
+  def callback(result):
+    name, port = random.choice(sorted((str(x.payload.target), x.payload.port) for x in result[0]))
+    reactor.connectTCP(name, port, f, **tcpkwargs)
+  def errback(err):
+    f.clientConnectionFailed(None, err) # None?!
+
+  d = CONNECTION_RESOLVER.lookupService(config.IRCSERVER, (1, 3, 11))
+  d.addCallbacks(callback, errback)
   return f
 
 if __name__ == "__main__":

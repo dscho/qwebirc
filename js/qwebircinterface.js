@@ -18,10 +18,23 @@ qwebirc.ui.Interface = new Class({
     searchURL: true,
     theme: undefined,
     baseURL: null,
-    hue: null
+    hue: null,
+    saturation: null,
+    lightness: null,
+    uiOptionsArg: null,
+    nickValidation: null,
+    dynamicBaseURL: "/",
+    staticBaseURL: "/"
   },
   initialize: function(element, ui, options) {
     this.setOptions(options);
+    
+    /* HACK */
+    qwebirc.global = {
+      dynamicBaseURL: options.dynamicBaseURL,
+      staticBaseURL: options.staticBaseURL,
+      nicknameValidator: $defined(options.nickValidation) ? new qwebirc.irc.NicknameValidator(options.nickValidation) : new qwebirc.irc.DummyNicknameValidator()
+    };
 
     window.addEvent("domready", function() {
       var callback = function(options) {
@@ -40,6 +53,12 @@ qwebirc.ui.Interface = new Class({
       if(this.options.searchURL) {
         var args = qwebirc.util.parseURI(String(document.location));
         this.options.hue = this.getHueArg(args);
+        this.options.saturation = this.getSaturationArg(args);
+        this.options.lightness = this.getLightnessArg(args);
+        
+        if($defined(args["uio"]))
+          this.options.uiOptionsArg = args["uio"];
+
         var url = args["url"];
         var chans, nick = args["nick"];
         
@@ -116,6 +135,24 @@ qwebirc.ui.Interface = new Class({
     if(hue > 360 || hue < 0)
       return null;
     return hue;
+  },
+  getSaturationArg: function(args) {
+    var saturation = args["saturation"];
+    if(!$defined(saturation))
+      return null;
+    saturation = parseInt(saturation);
+    if(saturation > 100 || saturation < -100)
+      return null;
+    return saturation;
+  },
+  getLightnessArg: function(args) {
+    var lightness = args["lightness"];
+    if(!$defined(lightness))
+      return null;
+    lightness = parseInt(lightness);
+    if(lightness > 100 || lightness < -100)
+      return null;
+    return lightness;
   },
   randSub: function(nick) {
     var getDigit = function() { return Math.floor(Math.random() * 10); }

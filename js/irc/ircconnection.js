@@ -4,7 +4,10 @@ qwebirc.irc.IRCConnection = new Class({
   Implements: [Events, Options],
   options: {
     initialNickname: "ircconnX",
-    timeout: 45000,
+    minTimeout: 45000,
+    maxTimeout: 5 * 60000,
+    timeoutIncrement: 10000,
+    initialTimeout: 65000,
     floodInterval: 200,
     floodMax: 10,
     floodReset: 5000,
@@ -27,6 +30,7 @@ qwebirc.irc.IRCConnection = new Class({
     this.__retryAttempts = 0;
     
     this.__timeoutId = null;
+    this.__timeout = this.options.initialTimeout;
     this.__lastActiveRequest = null;
     this.__activeRequest = null;
     
@@ -52,23 +56,30 @@ qwebirc.irc.IRCConnection = new Class({
       asynchronous = false;
 
     var r = new Request.JSON({
-      url: "/e/" + url + "?r=" + this.cacheAvoidance + "&t=" + this.counter++,
+      url: qwebirc.global.dynamicBaseURL + "e/" + url + "?r=" + this.cacheAvoidance + "&t=" + this.counter++,
       async: asynchronous
     });
     
     /* try to minimise the amount of headers */
     r.headers = new Hash;
     r.addEvent("request", function() {
-      var setHeader = function(key, value) {
+      var kill = ["Accept", "Accept-Language"];
+      var killBit = "";
+
+      if(Browser.Engine.trident) {
+        killBit = "?";
+        kill.push("User-Agent");
+        kill.push("Connection");
+      } else if(/Firefox[\/\s]\d+\.\d+/.test(navigator.userAgent)) { /* HACK */
+        killBit = null;
+      }
+
+      for(var i=0;i<kill.length;i++) {
         try {
-          this.setRequestHeader(key, value);
+          this.setRequestHeader(kill[i], killBit);
         } catch(e) {
         }
-      }.bind(this);
-    
-      setHeader("User-Agent", null);
-      setHeader("Accept", null);
-      setHeader("Accept-Language", null);
+      }
     }.bind(r.xhr));
     
     if(Browser.Engine.trident)
@@ -152,8 +163,7 @@ qwebirc.irc.IRCConnection = new Class({
     return true;
   },
   __scheduleTimeout: function() {
-    if(this.options.timeout)
-      this.__timeoutId = this.__timeoutEvent.delay(this.options.timeout, this);
+    this.__timeoutId = this.__timeoutEvent.delay(this.__timeout, this);
   },
   __cancelTimeout: function() {
     if($defined(this.__timeoutId)) {
@@ -167,16 +177,16 @@ qwebirc.irc.IRCConnection = new Class({
     if(!$defined(this.__activeRequest))
       return;
       
-    if(this.__checkRetries()) {
-      if(this.__lastActiveRequest)
-        this.__lastActiveRequest.cancel();
+    if(this.__lastActiveRequest)
+      this.__lastActiveRequest.cancel();
         
-      this.__activeRequest.__replaced = true;
-      this.__lastActiveRequest = this.__activeRequest;
-      this.recv();
-    } else {
-      this.__cancelRequests();
-    }
+    this.__activeRequest.__replaced = true;
+    this.__lastActiveRequest = this.__activeRequest;
+      
+    if(this.__timeout + this.options.timeoutIncrement <= this.options.maxTimeout)
+      this.__timeout+=this.options.timeoutIncrement;
+        
+    this.recv();
   },
   __checkRetries: function() {
     /* hmm, something went wrong! */
@@ -187,6 +197,9 @@ qwebirc.irc.IRCConnection = new Class({
       return false;
     }
     
+    if(this.__timeout - this.options.timeoutIncrement >= this.options.minTimeout)
+      this.__timeout-=this.options.timeoutIncrement;
+
     return true;
   },
   recv: function() {

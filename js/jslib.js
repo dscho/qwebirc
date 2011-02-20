@@ -17,6 +17,7 @@ qwebirc.util.dictCopy = function(d) {
 
 /* how horribly inefficient */
 String.prototype.replaceAll = function(f, t) {
+  //return new RegExp("/" + RegExp.escape(f) + "/g").replace(f, RegExp.escape(t));
   var i = this.indexOf(f);
   var c = this;
  
@@ -117,15 +118,7 @@ qwebirc.util.pad = function(x) {
 }
 
 RegExp.escape = function(text) {
-  if(!arguments.callee.sRE) {
-    var specials = [
-      '/', '.', '*', '+', '?', '|',
-      '(', ')', '[', ']', '{', '}', '\\'
-    ];
-    arguments.callee.sRE = new RegExp('(\\' + specials.join('|\\') + ')', 'g');
-  }
-  
-  return text.replace(arguments.callee.sRE, '\\$1');
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 }
 
 qwebirc.ui.insertAt = function(position, parent, element) {
@@ -238,7 +231,7 @@ qwebirc.util.importJS = function(name, watchFor, onload) {
   document.getElementsByTagName("head")[0].appendChild(script);
 }
 
-qwebirc.util.createInput = function(type, parent, name, selected) {
+qwebirc.util.createInput = function(type, parent, name, selected, id) {
   var r;
   if(Browser.Engine.trident) {
     if(name) {
@@ -246,12 +239,19 @@ qwebirc.util.createInput = function(type, parent, name, selected) {
     } else {
       name = "";
     }
-    r = $(document.createElement("<input type=\"" + type + "\"" + name + " " + (selected?" checked":"") + "/>"));
+    if(id) {
+      id = " id=\"" + escape(id) + "\"";
+    } else {
+      id = "";
+    }
+    r = $(document.createElement("<input type=\"" + type + "\"" + name + id + " " + (selected?" checked":"") + "/>"));
   } else {    
     r = new Element("input");
     r.type = type;
     if(name)
       r.name = name;
+    if(id)
+      r.id = id;
       
     if(selected)
       r.checked = true;
@@ -293,6 +293,11 @@ qwebirc.util.b64Decode = function(data) {
 
   var output = [];
   var table = qwebirc.util.b64Table;
+  
+  /* grossly inefficient... so sue me */
+  while(data.length % 4 != 0)
+    data = data + "=";
+    
   for(var i=0;i<data.length;) {
     var enc1 = table.indexOf(data.charAt(i++));
     var enc2 = table.indexOf(data.charAt(i++));
@@ -363,4 +368,9 @@ qwebirc.util.deviceHasKeyboard = function() {
   }
   
   return v;
+}
+
+qwebirc.util.generateID_ID = 0;
+qwebirc.util.generateID = function() {
+  return "qqa-" + qwebirc.util.generateID_ID++;
 }

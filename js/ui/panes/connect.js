@@ -8,7 +8,7 @@ qwebirc.ui.GenericLoginBox = function(parentElement, callback, initialNickname, 
 
 qwebirc.ui.AuthLogin = function(e) {
   var cookie = Cookie.write("redirect", document.location);
-  document.location = "./auth/";
+  document.location = qwebirc.global.dynamicBaseURL + "auth/";
   new Event(e).stop();
 }
 
@@ -73,7 +73,6 @@ qwebirc.ui.ConfirmBox = function(parentElement, callback, initialNickname, initi
 
   var yes = new Element("input", {"type": "submit", "value": "Connect"});
   td.appendChild(yes);
-  yes.focus();
   yes.addEvent("click", function(e) {
     parentElement.removeChild(outerbox);
     callback({"nickname": initialNickname, "autojoin": initialChannels});
@@ -84,6 +83,9 @@ qwebirc.ui.ConfirmBox = function(parentElement, callback, initialNickname, initi
     td.appendChild(auth);
     auth.addEvent("click", qwebirc.ui.AuthLogin);
   }
+  
+  if(window == window.top) 
+    yes.focus();
 }
 
 qwebirc.ui.LoginBox = function(parentElement, callback, initialNickname, initialChannels, networkName) {
@@ -200,7 +202,14 @@ qwebirc.ui.LoginBox = function(parentElement, callback, initialNickname, initial
       nick.focus();
       return;
     }
-
+    var stripped = qwebirc.global.nicknameValidator.validate(nickname);
+    if(stripped != nickname) {
+      nick.value = stripped;
+      alert("Your nickname was invalid and has been corrected; please check your altered nickname and press Connect again.");
+      nick.focus();
+      return;
+    }
+    
     var data = {"nickname": nickname, "autojoin": chans};
     if(qwebirc.auth.enabled()) {
       if(qwebirc.auth.passAuth() && authCheckBox.checked) {
@@ -233,7 +242,8 @@ qwebirc.ui.LoginBox = function(parentElement, callback, initialNickname, initial
   nick.set("value", initialNickname);
   chan.set("value", initialChannels);
 
-  nick.focus();
+  if(window == window.top)
+    nick.focus();
 }
 
 qwebirc.ui.authShowHide = function(checkbox, authRow, usernameBox, usernameRow, passwordRow) {
