@@ -69,3 +69,35 @@ qwebirc.irc.IRCDate = function(d) {
 qwebirc.irc.toIRCCompletion = function(client, data) {
   return client.toIRCLower(data).replace(/[^\w]+/g, "");
 }
+    
+qwebirc.irc.ircParse = function(s) {
+  var pSplit = function(x) {
+    var y = x.split(" ");
+    var r = [];
+    for(var i=0;i<y.length;i++) {
+      if(y[i] != "")
+        r.push(y[i]);
+    }
+    return r;
+  };
+  
+  var prefix = "";
+  if(!s)
+    return null;
+  if(s.charAt(0) == ":") {
+    var d = s.substr(1).splitMax(" ", 2)
+    prefix = d[0];
+    s = d[1];
+  }
+  var args;
+  if(s.indexOf(" :") != -1) {
+    var d = s.splitMax(" :", 2);
+    args = pSplit(d[0]);
+    args.push(d[1]);
+  } else {
+    args = pSplit(s);
+  }
+  
+  var command = args.shift();
+  return [prefix, command, args];
+};

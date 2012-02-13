@@ -32,7 +32,7 @@ qwebirc.irc.BaseIRCClient = new Class({
     this.channels = {}
     this.nextctcp = 0;    
 
-    this.connection = new qwebirc.irc.IRCConnection({
+    this.connection = new qwebirc.irc.ConnectionAdaptor(function() { return new qwebirc.irc.QWebIRCv1IRCConnectionAdaptor(); }, {
       initialNickname: this.nickname,
       onRecv: this.dispatch.bind(this),
       serverPassword: this.options.serverPassword
@@ -49,7 +49,7 @@ qwebirc.irc.BaseIRCClient = new Class({
     if(message == "connect") {
       this.connected();
     } else if(message == "disconnect") {
-      if(data.length == 0) {
+      if(data.length == 1) {
         this.disconnected("No error!");
       } else {
         this.disconnected(data[1]);
