@@ -59,7 +59,7 @@ qwebirc.ui.BaseUI = new Class({
     if(!this.firstClient) {
       this.firstClient = true;
       w.addLine("", "qwebirc v" + qwebirc.VERSION);
-      w.addLine("", "Copyright (C) 2008-2011 Chris Porter and the qwebirc project.");
+      w.addLine("", "Copyright (C) 2008-2012 Chris Porter and the qwebirc project.");
       w.addLine("", "http://www.qwebirc.org");
       w.addLine("", "Licensed under the GNU General Public License, Version 2.");
     }
@@ -113,6 +113,29 @@ qwebirc.ui.BaseUI = new Class({
   },  
   __setActiveWindow: function(window) {
     this.active = window;
+  },
+  renameWindow: function(window, name) {
+    if(this.getWindow(window.client, window.type, name))
+      return null;
+    
+    var clientId = this.getClientId(window.client);
+    var index = this.windowArray.indexOf(window);
+    if(index == -1)
+      return null;
+    
+    delete this.windows[clientId][window.identifier];
+    
+    var window = this.windowArray[index];
+    window.name = name;
+    window.identifier = this.getWindowIdentifier(window.client, window.type, window.name);
+    
+    this.windows[clientId][window.identifier] = this.windowArray[index];
+    
+    if(window.active)
+      this.updateTitle(window.name + " - " + this.options.appTitle);
+    
+    window.rename(window.name);
+    return window;
   },
   selectWindow: function(window) {
     if(this.active)
@@ -197,6 +220,10 @@ qwebirc.ui.StandardUI = new Class({
     if($defined(this.options.hue)) this.__styleValues.hue = this.options.hue;
     if($defined(this.options.saturation)) this.__styleValues.saturation = this.options.saturation;
     if($defined(this.options.lightness)) this.__styleValues.lightness = this.options.lightness;
+
+    if(this.options.thue !== null) this.__styleValues.textHue = this.options.thue;
+    if(this.options.tsaturation !== null) this.__styleValues.textSaturation = this.options.tsaturation;
+    if(this.options.tlightness !== null) this.__styleValues.textLightness = this.options.tlightness;
     
     var ev;
     if(Browser.Engine.trident) {
@@ -354,13 +381,23 @@ qwebirc.ui.StandardUI = new Class({
     if(!$defined(this.__styleSheet))
       return;
       
-    var hue = this.__styleValues.hue, lightness = this.__styleValues.lightness, saturation = this.__styleValues.saturation;
-    
+    var back = {hue: this.__styleValues.hue, lightness: this.__styleValues.lightness, saturation: this.__styleValues.saturation};
+    var front = {hue: this.__styleValues.textHue, lightness: this.__styleValues.textLightness, saturation: this.__styleValues.textSaturation};
+
+    if(!this.__styleValues.textHue && !this.__styleValues.textLightness && !this.__styleValues.textSaturation)
+      front = back;
+
+    var colours = {
+      back: back,
+      front: front
+    };
+
     this.__styleSheet.set(function() {
       var mode = arguments[0];
       if(mode == "c") {
+        var t = colours[arguments[2]];
         var x = new Color(arguments[1]);
-        var c = x.setHue(hue).setSaturation(x.hsb[1] + saturation).setBrightness(x.hsb[2] + lightness);
+        var c = x.setHue(t.hue).setSaturation(x.hsb[1] + t.saturation).setBrightness(x.hsb[2] + t.lightness);
         if(c == "255,255,255") /* IE confuses white with transparent... */
           c = "255,255,254";
         
